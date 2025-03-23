@@ -1,17 +1,79 @@
 import React, { useState, useEffect } from 'react';
 import { Shield, CheckCircle, XCircle, Search, FileText, Wallet, AlertTriangle, Trash2 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
-import LocalStorageService from '../services/LocalStorageService';
 
 const AuditorDashboard = () => {
-  const [selectedFundraiser, setSelectedFundraiser] = useState(null);
+  const [selectedFundraiser, setSelectedFundraiser] = useState<number | null>(null);
   const [verificationNote, setVerificationNote] = useState('');
-  const [walletAddress, setWalletAddress] = useState(null);
-  const [showDeleteConfirmation, setShowDeleteConfirmation] = useState(null);
-  const [pendingFundraisers, setPendingFundraisers] = useState([]);
-  const [activeFundraisers, setActiveFundraisers] = useState([]);
-  const [recentlyVerified, setRecentlyVerified] = useState([]);
+  const [walletAddress, setWalletAddress] = useState<string | null>(null);
+  const [showDeleteConfirmation, setShowDeleteConfirmation] = useState<number | null>(null);
   const navigate = useNavigate();
+
+  // Placeholder data - would be fetched from smart contract
+  const pendingFundraisers = [
+    {
+      id: 1,
+      title: 'Clean Water Initiative',
+      ngo: 'WaterAid Foundation',
+      description: 'Providing clean water access to rural communities',
+      goal: 5,
+      documents: [
+        { id: 1, title: 'NGO Registration', url: '#' },
+        { id: 2, title: 'Project Plan', url: '#' },
+        { id: 3, title: 'Budget Breakdown', url: '#' }
+      ],
+      submissionDate: '2024-02-25'
+    },
+    {
+      id: 2,
+      title: 'Education for All',
+      ngo: 'Global Education Trust',
+      description: 'Supporting underprivileged children with quality education',
+      goal: 10,
+      documents: [
+        { id: 1, title: 'Trust Certificate', url: '#' },
+        { id: 2, title: 'Previous Projects', url: '#' }
+      ],
+      submissionDate: '2024-02-26'
+    }
+  ];
+
+  const verifiedFundraisers = [
+    {
+      id: 3,
+      title: 'Healthcare Access Program',
+      ngo: 'MedAid International',
+      verificationDate: '2024-02-20',
+      status: 'approved',
+      note: 'All documentation verified. Project goals align with NGO mission.'
+    }
+  ];
+  
+  // Active fundraisers from donor and NGO dashboards
+  const activeFundraisers = [
+    {
+      id: 101,
+      title: 'Clean Water Initiative',
+      ngo: 'WaterAid Foundation',
+      description: 'Providing clean water access to rural communities',
+      goal: 5,
+      raised: 2.5,
+      isVerified: true,
+      startDate: '2024-02-15',
+      endDate: '2024-04-15'
+    },
+    {
+      id: 102,
+      title: 'Education for All',
+      ngo: 'Global Education Trust',
+      description: 'Supporting underprivileged children with quality education',
+      goal: 10,
+      raised: 7.8,
+      isVerified: true,
+      startDate: '2024-01-20',
+      endDate: '2024-03-20'
+    }
+  ];
 
   useEffect(() => {
     // Check if wallet is connected and user has auditor role
@@ -25,17 +87,18 @@ const AuditorDashboard = () => {
     
     setWalletAddress(storedAddress);
     
-    // Load data from localStorage
-    loadFundraisers();
+    // You could also verify the auditor role on the blockchain here
     
-    // Setup event listener for wallet change
+    // Set up event listener for account changes
     if (window.ethereum) {
-      window.ethereum.on('accountsChanged', (accounts) => {
+      window.ethereum.on('accountsChanged', (accounts: string[]) => {
         if (accounts.length === 0) {
+          // User disconnected wallet
           localStorage.removeItem('walletAddress');
           localStorage.removeItem('userRole');
           navigate('/');
         } else {
+          // User switched accounts
           localStorage.setItem('walletAddress', accounts[0]);
           setWalletAddress(accounts[0]);
         }
@@ -43,41 +106,22 @@ const AuditorDashboard = () => {
     }
     
     return () => {
+      // Clean up event listener
       if (window.ethereum) {
         window.ethereum.removeListener('accountsChanged', () => {});
       }
     };
   }, [navigate]);
 
-  const loadFundraisers = () => {
-    // Load pending fundraisers
-    const pending = LocalStorageService.getPendingFundraisers();
-    setPendingFundraisers(pending);
-    
-    // Load active (approved) fundraisers
-    const active = LocalStorageService.getApprovedFundraisers();
-    setActiveFundraisers(active);
-    
-    // Load recently verified (last 5)
-    const allVerified = [...active];
-    allVerified.sort((a, b) => new Date(b.verificationDate) - new Date(a.verificationDate));
-    setRecentlyVerified(allVerified.slice(0, 5));
-  };
-
-  const handleVerify = async (fundraiserId, approved) => {
+  const handleVerify = async (fundraiserId: number, approved: boolean) => {
     try {
-      if (approved) {
-        // Approve the fundraiser
-        LocalStorageService.approveFundraiser(fundraiserId);
-      } else {
-        // Reject the fundraiser
-        LocalStorageService.rejectFundraiser(fundraiserId, verificationNote);
-      }
+      // Here you would interact with the smart contract
+      // Example: await contractInstance.verifyFundraiser(fundraiserId, approved, verificationNote);
       
-      // Reload fundraisers
-      loadFundraisers();
+      console.log(`Fundraiser ${fundraiserId} ${approved ? 'approved' : 'rejected'}`);
+      console.log('Verification note:', verificationNote);
+      console.log('Auditor wallet:', walletAddress);
       
-      // Reset state
       setSelectedFundraiser(null);
       setVerificationNote('');
     } catch (error) {
@@ -85,16 +129,21 @@ const AuditorDashboard = () => {
     }
   };
   
-  const handleDeleteFundraiser = async (fundraiserId) => {
+  const handleDeleteFundraiser = async (fundraiserId: number) => {
     try {
-      // Delete the fundraiser
-      LocalStorageService.deleteApprovedFundraiser(fundraiserId);
+      // Here you would interact with the smart contract to delete the fundraiser
+      // Example: await contractInstance.deleteFundraiser(fundraiserId);
       
-      // Reload fundraisers
-      loadFundraisers();
+      console.log(`Fundraiser ${fundraiserId} deleted by auditor`);
+      console.log('Auditor wallet:', walletAddress);
       
-      // Reset state
+      // Update UI - in a real implementation, you would refresh the data from the blockchain
       setShowDeleteConfirmation(null);
+      
+      // For this example, we'll just update the state
+      // In a real app, you'd fetch the updated list from the blockchain
+      alert(`Fundraiser ${fundraiserId} has been deleted successfully`);
+      
     } catch (error) {
       console.error('Error deleting fundraiser:', error);
     }
@@ -106,18 +155,18 @@ const AuditorDashboard = () => {
     navigate('/');
   };
 
-  const formatWalletAddress = (address) => {
+  const formatWalletAddress = (address: string) => {
     return `${address.substring(0, 6)}...${address.substring(address.length - 4)}`;
   };
 
   return (
     <div className="max-w-7xl mx-auto px-4 py-12">
-      {/* Header */}
       <div className="flex items-center justify-between mb-8">
         <div className="flex items-center gap-3">
           <Shield className="h-8 w-8 text-purple-600" />
           <h1 className="text-3xl font-bold">Auditor Dashboard</h1>
         </div>
+        
         {walletAddress && (
           <div className="flex items-center gap-2">
             <div className="px-4 py-2 bg-purple-100 text-purple-800 rounded-md flex items-center gap-2">
@@ -135,29 +184,34 @@ const AuditorDashboard = () => {
       </div>
 
       {/* Stats Overview */}
-      <div className="grid md:grid-cols-3 gap-6 mb-8">
+      <div className="grid md:grid-cols-4 gap-6 mb-8">
         <div className="bg-white rounded-lg shadow-md p-6">
           <div className="flex items-center gap-3 mb-2">
-            <AlertTriangle className="h-6 w-6 text-yellow-600" />
-            <h3 className="text-lg font-semibold">Pending Verifications</h3>
+            <Search className="h-6 w-6 text-purple-600" />
+            <h3 className="text-lg font-semibold">Pending Reviews</h3>
           </div>
           <p className="text-2xl font-bold">{pendingFundraisers.length}</p>
         </div>
         <div className="bg-white rounded-lg shadow-md p-6">
           <div className="flex items-center gap-3 mb-2">
-            <CheckCircle className="h-6 w-6 text-green-600" />
-            <h3 className="text-lg font-semibold">Active Fundraisers</h3>
+            <CheckCircle className="h-6 w-6 text-purple-600" />
+            <h3 className="text-lg font-semibold">Verified Today</h3>
           </div>
-          <p className="text-2xl font-bold">{activeFundraisers.length}</p>
+          <p className="text-2xl font-bold">3</p>
         </div>
         <div className="bg-white rounded-lg shadow-md p-6">
           <div className="flex items-center gap-3 mb-2">
-            <Shield className="h-6 w-6 text-purple-600" />
-            <h3 className="text-lg font-semibold">Total Amount Raised</h3>
+            <FileText className="h-6 w-6 text-purple-600" />
+            <h3 className="text-lg font-semibold">Total Reviewed</h3>
           </div>
-          <p className="text-2xl font-bold">
-            {activeFundraisers.reduce((sum, f) => sum + parseFloat(f.raised || 0), 0).toFixed(2)} ETH
-          </p>
+          <p className="text-2xl font-bold">45</p>
+        </div>
+        <div className="bg-white rounded-lg shadow-md p-6">
+          <div className="flex items-center gap-3 mb-2">
+            <AlertTriangle className="h-6 w-6 text-amber-500" />
+            <h3 className="text-lg font-semibold">Active Fundraisers</h3>
+          </div>
+          <p className="text-2xl font-bold">{activeFundraisers.length}</p>
         </div>
       </div>
 
@@ -216,27 +270,21 @@ const AuditorDashboard = () => {
               <div className="mb-4">
                 <div className="flex justify-between text-sm mb-1">
                   <span>Progress</span>
-                  <span>{((fundraiser.raised || 0) / fundraiser.goal * 100).toFixed(1)}%</span>
+                  <span>{(fundraiser.raised / fundraiser.goal * 100).toFixed(1)}%</span>
                 </div>
                 <div className="w-full bg-gray-200 rounded-full h-2">
                   <div
                     className="bg-purple-600 rounded-full h-2"
-                    style={{ width: `${Math.min(100, ((fundraiser.raised || 0) / fundraiser.goal * 100))}%` }}
+                    style={{ width: `${Math.min(100, (fundraiser.raised / fundraiser.goal * 100))}%` }}
                   ></div>
                 </div>
                 <div className="flex justify-between text-sm mt-1">
-                  <span>{fundraiser.raised || 0} ETH raised</span>
+                  <span>{fundraiser.raised} ETH raised</span>
                   <span>Goal: {fundraiser.goal} ETH</span>
                 </div>
               </div>
             </div>
           ))}
-
-          {activeFundraisers.length === 0 && (
-            <div className="text-center py-4 text-gray-500">
-              No active fundraisers to display.
-            </div>
-          )}
         </div>
       </div>
 
@@ -263,55 +311,55 @@ const AuditorDashboard = () => {
                   <div className="flex gap-2">
                     <button
                       onClick={() => handleVerify(fundraiser.id, true)}
-                      className="px-4 py-2 bg-green-600text-white rounded-md hover:bg-green-700 transition-colors flex items-center gap-2"
+                      className="px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 transition-colors"
                     >
-                      <CheckCircle className="h-4 w-4" />
                       Approve
                     </button>
                     <button
                       onClick={() => handleVerify(fundraiser.id, false)}
-                      className="px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700 transition-colors flex items-center gap-2"
+                      className="px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700 transition-colors"
                     >
-                      <XCircle className="h-4 w-4" />
                       Reject
                     </button>
                   </div>
                 )}
               </div>
-              
               <p className="text-gray-700 mb-4">{fundraiser.description}</p>
               
-              {/* Goal Display */}
-              <div className="mb-4">
-                <p className="font-medium">Goal: {fundraiser.goal} ETH</p>
-              </div>
-              
               {selectedFundraiser === fundraiser.id && (
-                <div className="mt-4 border-t pt-4">
-                  <h4 className="font-semibold mb-2">Verification Note</h4>
-                  <textarea
-                    value={verificationNote}
-                    onChange={(e) => setVerificationNote(e.target.value)}
-                    placeholder="Enter notes about verification decision (required for rejections)"
-                    rows={3}
-                    className="w-full px-3 py-2 border rounded-md mb-2"
-                  ></textarea>
-                  <div className="flex items-center gap-2 text-sm text-gray-600">
-                    <FileText className="h-4 w-4" />
-                    <span>
-                      Document verification and due diligence checks should be completed before approval.
-                    </span>
+                <div className="bg-gray-50 p-4 rounded-md">
+                  <h4 className="font-semibold mb-3">Verification Details</h4>
+                  <div className="space-y-4">
+                    <div>
+                      <h5 className="font-medium mb-2">Submitted Documents</h5>
+                      <ul className="space-y-2">
+                        {fundraiser.documents.map((doc) => (
+                          <li key={doc.id} className="flex items-center gap-2">
+                            <FileText className="h-4 w-4 text-gray-600" />
+                            <a href={doc.url} className="text-purple-600 hover:underline">
+                              {doc.title}
+                            </a>
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                        Verification Notes
+                      </label>
+                      <textarea
+                        value={verificationNote}
+                        onChange={(e) => setVerificationNote(e.target.value)}
+                        className="w-full px-3 py-2 border rounded-md"
+                        rows={4}
+                        placeholder="Add your verification notes here..."
+                      />
+                    </div>
                   </div>
                 </div>
               )}
             </div>
           ))}
-
-          {pendingFundraisers.length === 0 && (
-            <div className="text-center py-4 text-gray-500">
-              No pending verifications at this time.
-            </div>
-          )}
         </div>
       </div>
 
@@ -319,25 +367,25 @@ const AuditorDashboard = () => {
       <div className="bg-white rounded-lg shadow-md p-6">
         <h2 className="text-xl font-semibold mb-6">Recently Verified</h2>
         <div className="space-y-4">
-          {recentlyVerified.map((fundraiser) => (
-            <div key={fundraiser.id} className="flex items-center justify-between p-3 bg-gray-50 rounded-md">
+          {verifiedFundraisers.map((fundraiser) => (
+            <div key={fundraiser.id} className="flex items-start justify-between p-4 bg-gray-50 rounded-md">
               <div>
-                <h3 className="font-medium">{fundraiser.title}</h3>
-                <p className="text-sm text-gray-600">
-                  Verified on {fundraiser.verificationDate}
+                <h3 className="font-semibold mb-1">{fundraiser.title}</h3>
+                <p className="text-gray-600 text-sm">{fundraiser.ngo}</p>
+                <p className="text-sm text-gray-500 mt-1">
+                  Verified on: {fundraiser.verificationDate}
                 </p>
+                <p className="text-sm text-gray-700 mt-2">{fundraiser.note}</p>
               </div>
-              <div className="px-2 py-1 bg-green-100 text-green-800 text-xs rounded-full">
-                Approved
-              </div>
+              <span className={`px-3 py-1 rounded-full text-sm ${
+                fundraiser.status === 'approved' 
+                  ? 'bg-green-100 text-green-800' 
+                  : 'bg-red-100 text-red-800'
+              }`}>
+                {fundraiser.status === 'approved' ? 'Approved' : 'Rejected'}
+              </span>
             </div>
           ))}
-
-          {recentlyVerified.length === 0 && (
-            <div className="text-center py-4 text-gray-500">
-              No recently verified fundraisers to display.
-            </div>
-          )}
         </div>
       </div>
     </div>
